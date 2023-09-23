@@ -49,17 +49,12 @@ namespace interface1
  *
  * \tparam mode                 Computation mode of the algorithm, \ref ComputeMode
  * \tparam sse2Container        Implementation for Intel(R) Streaming SIMD Extensions 2 (Intel(R) SSE2)
- * \tparam ssse3Container       Implementation for Supplemental Streaming SIMD Extensions 3 (SSSE3)
  * \tparam sse42Container       Implementation for Intel(R) Streaming SIMD Extensions 42 (Intel(R) SSE42)
- * \tparam avxContainer         Implementation for Intel(R) Advanced Vector Extensions (Intel(R) AVX)
  * \tparam avx2Container        Implementation for Intel(R) Advanced Vector Extensions 2 (Intel(R) AVX2)
- * \tparam avx512_micContainer  Implementation for Intel(R) Xeon Phi(TM) processors/coprocessors based on Intel(R) Advanced Vector
- *                              Extensions 512 (Intel(R) AVX512)
  * \tparam avx512Container      Implementation for Intel(R) Xeon(R) processors based on Intel AVX-512
  */
-template <ComputeMode mode, typename sse2Container DAAL_KERNEL_SSSE3_ONLY(typename ssse3Container) DAAL_KERNEL_SSE42_ONLY(typename sse42Container)
-                                DAAL_KERNEL_AVX_ONLY(typename avxContainer) DAAL_KERNEL_AVX2_ONLY(typename avx2Container)
-                                    DAAL_KERNEL_AVX512_MIC_ONLY(typename avx512_micContainer) DAAL_KERNEL_AVX512_ONLY(typename avx512Container)>
+template <ComputeMode mode, typename sse2Container DAAL_KERNEL_SSE42_ONLY(typename sse42Container) DAAL_KERNEL_AVX2_ONLY(typename avx2Container)
+                                DAAL_KERNEL_AVX512_ONLY(typename avx512Container)>
 class DAAL_EXPORT AlgorithmDispatchContainer : public AlgorithmContainerImpl<mode>
 {
 public:
@@ -76,20 +71,20 @@ public:
         services::internal::sycl::ExecutionContextIface & context = services::internal::getDefaultContext();
         services::internal::sycl::InfoDevice & deviceInfo         = context.getInfoDevice();
         if (!daal::services::internal::isImplementedForDevice(deviceInfo, _cntr)) return services::Status(services::ErrorDeviceSupportNotImplemented);
-        _cntr->setArguments(this->_in, this->_pres, this->_par);
+        _cntr->setArguments(this->_in, this->_pres, this->_par, this->_hpar);
         return _cntr->compute();
     }
 
     virtual services::Status finalizeCompute() DAAL_C11_OVERRIDE
     {
-        _cntr->setArguments(this->_in, this->_pres, this->_par);
+        _cntr->setArguments(this->_in, this->_pres, this->_par, this->_hpar);
         _cntr->setResult(this->_res);
         return _cntr->finalizeCompute();
     }
 
     virtual services::Status setupCompute() DAAL_C11_OVERRIDE
     {
-        _cntr->setArguments(this->_in, this->_pres, this->_par);
+        _cntr->setArguments(this->_in, this->_pres, this->_par, this->_hpar);
         _cntr->setResult(this->_res);
         return _cntr->setupCompute();
     }
@@ -104,12 +99,10 @@ private:
     AlgorithmDispatchContainer & operator=(const AlgorithmDispatchContainer &);
 };
 
-#define __DAAL_ALGORITHM_CONTAINER(Mode, ContainerTemplate, ...)                                                                                    \
-    algorithms::AlgorithmDispatchContainer<Mode, ContainerTemplate<__VA_ARGS__, sse2> DAAL_KERNEL_SSSE3_CONTAINER(ContainerTemplate, __VA_ARGS__)   \
-                                                     DAAL_KERNEL_SSE42_CONTAINER(ContainerTemplate, __VA_ARGS__) DAAL_KERNEL_AVX_CONTAINER(         \
-                                                         ContainerTemplate, __VA_ARGS__) DAAL_KERNEL_AVX2_CONTAINER(ContainerTemplate, __VA_ARGS__) \
-                                                         DAAL_KERNEL_AVX512_MIC_CONTAINER(ContainerTemplate, __VA_ARGS__)                           \
-                                                             DAAL_KERNEL_AVX512_CONTAINER(ContainerTemplate, __VA_ARGS__)>
+#define __DAAL_ALGORITHM_CONTAINER(Mode, ContainerTemplate, ...)                                                                                  \
+    algorithms::AlgorithmDispatchContainer<Mode, ContainerTemplate<__VA_ARGS__, sse2> DAAL_KERNEL_SSE42_CONTAINER(ContainerTemplate, __VA_ARGS__) \
+                                                     DAAL_KERNEL_AVX2_CONTAINER(ContainerTemplate, __VA_ARGS__)                                   \
+                                                         DAAL_KERNEL_AVX512_CONTAINER(ContainerTemplate, __VA_ARGS__)>
 
 /** @} */
 } // namespace interface1

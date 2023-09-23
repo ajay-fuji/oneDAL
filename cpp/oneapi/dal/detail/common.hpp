@@ -196,6 +196,42 @@ inline constexpr std::int64_t get_data_type_size(data_type t) {
     }
 }
 
+inline constexpr std::int64_t get_data_type_align(data_type t) {
+    if (t == data_type::int8) {
+        return alignof(std::int8_t);
+    }
+    else if (t == data_type::int16) {
+        return alignof(std::int16_t);
+    }
+    else if (t == data_type::int32) {
+        return alignof(std::int32_t);
+    }
+    else if (t == data_type::int64) {
+        return alignof(std::int64_t);
+    }
+    else if (t == data_type::uint8) {
+        return alignof(std::uint8_t);
+    }
+    else if (t == data_type::uint16) {
+        return alignof(std::uint16_t);
+    }
+    else if (t == data_type::uint32) {
+        return alignof(std::uint32_t);
+    }
+    else if (t == data_type::uint64) {
+        return alignof(std::uint64_t);
+    }
+    else if (t == data_type::float32) {
+        return alignof(float);
+    }
+    else if (t == data_type::float64) {
+        return alignof(double);
+    }
+    else {
+        throw unimplemented{ dal::detail::error_messages::unsupported_data_type() };
+    }
+}
+
 template <typename T>
 inline constexpr data_type make_data_type_impl() {
     static_assert(is_one_of_v<T,
@@ -263,14 +299,15 @@ inline constexpr bool is_floating_point() {
     return is_floating_point(make_data_type<T>());
 }
 
-template <typename Data>
-struct integer_overflow_ops {
-    void check_mul_overflow(const Data& first, const Data& second);
-    void check_sum_overflow(const Data& first, const Data& second);
+template <typename... Types, typename Op>
+constexpr inline void apply(Op&& op) {
+    ((void)op(Types{}), ...);
+}
 
-    bool is_safe_sum(const Data& first, const Data& second, Data& sum_result);
-    bool is_safe_mul(const Data& first, const Data& second, Data& mul_result);
-};
+template <typename Op, typename... Args>
+constexpr inline void apply(Op&& op, Args&&... args) {
+    ((void)op(std::forward<Args>(args)), ...);
+}
 
 template <typename Data>
 struct limits {
@@ -287,6 +324,41 @@ struct limits {
 
 template <typename Out, typename In>
 inline Out integral_cast(const In& value) {
+    static_assert(std::is_integral_v<In> && std::is_integral_v<Out>,
+                  "The cast requires integral operands");
+    if constexpr (std::is_signed_v<Out> && std::is_signed_v<In>) {
+        if (value > limits<Out>::max()) {
+            throw range_error{ dal::detail::error_messages::integral_type_conversion_overflow() };
+        }
+        if (value < limits<Out>::min()) {
+            throw range_error{ dal::detail::error_messages::integral_type_conversion_underflow() };
+        }
+    }
+    else if constexpr (std::is_unsigned_v<Out> && std::is_unsigned_v<In>) {
+        if (value > limits<Out>::max()) {
+            throw range_error{ dal::detail::error_messages::integral_type_conversion_overflow() };
+        }
+    }
+    else if constexpr (std::is_unsigned_v<Out> && std::is_signed_v<In>) {
+        if (value < In(0)) {
+            throw range_error{
+                dal::detail::error_messages::negative_integral_value_conversion_to_unsigned()
+            };
+        }
+        if (static_cast<std::make_unsigned_t<In>>(value) > limits<Out>::max()) {
+            throw range_error{ dal::detail::error_messages::integral_type_conversion_overflow() };
+        }
+    }
+    else if constexpr (std::is_signed_v<Out> && std::is_unsigned_v<In>) {
+        if (value > static_cast<std::make_unsigned_t<Out>>(limits<Out>::max())) {
+            throw range_error{ dal::detail::error_messages::integral_type_conversion_overflow() };
+        }
+    }
+    return static_cast<Out>(value);
+}
+
+template <typename Out, typename In>
+inline Out integral_cast_debug(const In& value) {
     static_assert(std::is_integral_v<In> && std::is_integral_v<Out>,
                   "The cast requires integral operands");
     if constexpr (std::is_signed_v<Out> && std::is_signed_v<In>) {
@@ -347,6 +419,8 @@ inline bool is_safe_mul(const Data& first, const Data& second, Data& mul_result)
 
 } // namespace v2
 
+using v1::apply;
+
 using v1::is_one_of;
 using v1::is_one_of_v;
 using v1::is_tagged;
@@ -365,12 +439,14 @@ using v1::cast_impl;
 using v1::make_private;
 using v1::make_data_type;
 using v1::get_data_type_size;
+using v1::get_data_type_align;
 using v1::is_floating_point;
 using v2::check_sum_overflow;
 using v2::check_mul_overflow;
 using v2::is_safe_sum;
 using v2::is_safe_mul;
 using v1::integral_cast;
+using v1::integral_cast_debug;
 
 } // namespace oneapi::dal::detail
 

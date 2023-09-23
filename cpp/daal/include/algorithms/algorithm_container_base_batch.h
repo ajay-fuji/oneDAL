@@ -105,12 +105,14 @@ public:
      * \param[in] in    Pointer to the input arguments of the algorithm
      * \param[in] res   Pointer to the final results of the algorithm
      * \param[in] par   Pointer to the parameters of the algorithm
+     * \param[in] hpar  Pointer to the hyperparameters of the algorithm
      */
-    void setArguments(Input * in, Result * res, Parameter * par)
+    void setArguments(Input * in, Result * res, Parameter * par, const Hyperparameter * hpar)
     {
-        _in  = in;
-        _par = par;
-        _res = res;
+        _in   = in;
+        _par  = par;
+        _res  = res;
+        _hpar = hpar;
     }
 
     /**
@@ -124,6 +126,7 @@ public:
     virtual services::Status resetCompute() DAAL_C11_OVERRIDE { return services::Status(); }
 
 protected:
+    const Hyperparameter * _hpar;
     Parameter * _par;
     Input * _in;
     Result * _res;
@@ -136,21 +139,14 @@ protected:
  *
  * \tparam mode                 Computation mode of the algorithm, \ref ComputeMode
  * \tparam sse2Container        Implementation for Intel(R) Streaming SIMD Extensions 2 (Intel(R) SSE2)
- * \tparam ssse3Container       Implementation for Supplemental Streaming SIMD Extensions 3 (SSSE3)
  * \tparam sse42Container       Implementation for Intel(R) Streaming SIMD Extensions 42 (Intel(R) SSE42)
- * \tparam avxContainer         Implementation for Intel(R) Advanced Vector Extensions (Intel(R) AVX)
  * \tparam avx2Container        Implementation for Intel(R) Advanced Vector Extensions 2 (Intel(R) AVX2)
- * \tparam avx512_micContainer  Implementation for Intel(R) Xeon Phi(TM) processors/coprocessors based on Intel(R) Advanced Vector
- *                              Extensions 512 (Intel(R) AVX512)
  * \tparam avx512Container      Implementation for Intel(R) Xeon(R) processors based on Intel AVX-512
  */
-template <typename sse2Container DAAL_KERNEL_SSSE3_ONLY(typename ssse3Container) DAAL_KERNEL_SSE42_ONLY(typename sse42Container)
-              DAAL_KERNEL_AVX_ONLY(typename avxContainer) DAAL_KERNEL_AVX2_ONLY(typename avx2Container)
-                  DAAL_KERNEL_AVX512_MIC_ONLY(typename avx512_micContainer) DAAL_KERNEL_AVX512_ONLY(typename avx512Container)>
-class DAAL_EXPORT AlgorithmDispatchContainer<batch, sse2Container DAAL_KERNEL_SSSE3_ONLY(ssse3Container) DAAL_KERNEL_SSE42_ONLY(sse42Container)
-                                                        DAAL_KERNEL_AVX_ONLY(avxContainer) DAAL_KERNEL_AVX2_ONLY(avx2Container)
-                                                            DAAL_KERNEL_AVX512_MIC_ONLY(avx512_micContainer) DAAL_KERNEL_AVX512_ONLY(avx512Container)>
-    : public AlgorithmContainerImpl<batch>
+template <typename sse2Container DAAL_KERNEL_SSE42_ONLY(typename sse42Container) DAAL_KERNEL_AVX2_ONLY(typename avx2Container)
+              DAAL_KERNEL_AVX512_ONLY(typename avx512Container)>
+class DAAL_EXPORT AlgorithmDispatchContainer<batch, sse2Container DAAL_KERNEL_SSE42_ONLY(sse42Container) DAAL_KERNEL_AVX2_ONLY(avx2Container)
+                                                        DAAL_KERNEL_AVX512_ONLY(avx512Container)> : public AlgorithmContainerImpl<batch>
 {
 public:
     /**
@@ -170,13 +166,13 @@ public:
         services::internal::sycl::ExecutionContextIface & context = services::internal::getDefaultContext();
         services::internal::sycl::InfoDevice & deviceInfo         = context.getInfoDevice();
         if (!daal::services::internal::isImplementedForDevice(deviceInfo, _cntr)) return services::Status(services::ErrorDeviceSupportNotImplemented);
-        _cntr->setArguments(this->_in, this->_res, this->_par);
+        _cntr->setArguments(this->_in, this->_res, this->_par, this->_hpar);
         return _cntr->compute();
     }
 
     virtual services::Status setupCompute() DAAL_C11_OVERRIDE
     {
-        _cntr->setArguments(this->_in, this->_res, this->_par);
+        _cntr->setArguments(this->_in, this->_res, this->_par, this->_hpar);
         return _cntr->setupCompute();
     }
 

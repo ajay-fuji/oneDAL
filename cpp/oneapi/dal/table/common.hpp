@@ -63,13 +63,15 @@ public:
     /// Data types of the features in the metadata object. Should be within the range ``[0, feature_count)``
     const data_type& get_data_type(std::int64_t feature_index) const;
 
+    /// Get data types of features in bulk
+    const dal::array<data_type>& get_data_types() const;
+
+    /// Get feature types in bulk
+    const dal::array<feature_type>& get_feature_types() const;
+
 private:
     void serialize(detail::output_archive& ar) const;
     void deserialize(detail::input_archive& ar);
-
-    /// Maintained for backward compatibility
-    table_metadata(const dal::v1::array<data_type>& dtypes,
-                   const dal::v1::array<feature_type>& ftypes);
 
     detail::pimpl<detail::table_metadata_impl> impl_;
 };

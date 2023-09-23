@@ -26,18 +26,6 @@ public:
             : row_count_(row_count),
               column_count_(column_count) {}
 
-    // Needed for backward compatibility. Should be remove in oneDAL 2022.1.
-    detail::access_iface_host& get_access_iface_host() const override {
-        throw std::runtime_error{ "Do not use this method, it's for backward compatibility only" };
-    }
-
-#ifdef ONEDAL_DATA_PARALLEL
-    // Needed for backward compatibility. Should be remove in oneDAL 2022.1.
-    detail::access_iface_dpc& get_access_iface_dpc() const override {
-        throw std::runtime_error{ "Do not use this method, it's for backward compatibility only" };
-    }
-#endif
-
     std::int64_t get_kind() const override {
         return -1;
     }
@@ -101,6 +89,19 @@ public:
                               const range& row_range,
                               const sycl::usm::alloc&) const {
         block.reset();
+    }
+
+    template <typename Data>
+    void pull_csr_block_template(const detail::data_parallel_policy&,
+                                 dal::array<Data>& data,
+                                 dal::array<std::int64_t>& column_indices,
+                                 dal::array<std::int64_t>& row_offsets,
+                                 const sparse_indexing& indexing,
+                                 const range& row_range,
+                                 sycl::usm::alloc alloc) const {
+        data.reset();
+        column_indices.reset();
+        row_offsets.reset();
     }
 #endif
 

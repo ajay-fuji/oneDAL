@@ -15,6 +15,7 @@
 *******************************************************************************/
 
 #include "oneapi/dal/table/common.hpp"
+#include "oneapi/dal/table/detail/table_kinds.hpp"
 #include "oneapi/dal/table/backend/empty_table_impl.hpp"
 #include "oneapi/dal/backend/serialization.hpp"
 
@@ -28,6 +29,8 @@ public:
     virtual std::int64_t get_feature_count() const = 0;
     virtual const feature_type& get_feature_type(std::int64_t index) const = 0;
     virtual const data_type& get_data_type(std::int64_t index) const = 0;
+    virtual const dal::array<feature_type>& get_feature_types() const = 0;
+    virtual const dal::array<data_type>& get_data_types() const = 0;
 };
 
 } // namespace v1
@@ -41,7 +44,17 @@ class empty_metadata_impl : public table_metadata_impl,
                             public ONEDAL_SERIALIZABLE(empty_table_metadata_id) {
 public:
     std::int64_t get_feature_count() const override {
-        return 0;
+        return detail::get_empty_table_kind();
+    }
+
+    const dal::array<data_type>& get_data_types() const override {
+        static const dal::array<data_type> dtypes{};
+        return dtypes;
+    }
+
+    const dal::array<feature_type>& get_feature_types() const override {
+        static const dal::array<feature_type> ftypes{};
+        return ftypes;
     }
 
     const feature_type& get_feature_type(std::int64_t) const override {
@@ -84,6 +97,14 @@ public:
         return dtypes_.get_count();
     }
 
+    const dal::array<data_type>& get_data_types() const override {
+        return dtypes_;
+    }
+
+    const dal::array<feature_type>& get_feature_types() const override {
+        return ftypes_;
+    }
+
     const feature_type& get_feature_type(std::int64_t i) const override {
         if (!is_in_range(i)) {
             throw out_of_range(dal::detail::error_messages::feature_index_is_out_of_range());
@@ -122,12 +143,6 @@ table_metadata::table_metadata(const dal::array<data_type>& dtypes,
                                const dal::array<feature_type>& ftypes)
         : impl_(new simple_metadata_impl(dtypes, ftypes)) {}
 
-// This method is needed for compatibility with the oneDAL 2021.1.
-// This should be removed in 2022.1.
-table_metadata::table_metadata(const dal::v1::array<data_type>& dtypes,
-                               const dal::v1::array<feature_type>& ftypes)
-        : impl_(new simple_metadata_impl(dtypes.v2(), ftypes.v2())) {}
-
 int64_t table_metadata::get_feature_count() const {
     return impl_->get_feature_count();
 }
@@ -138,6 +153,14 @@ const feature_type& table_metadata::get_feature_type(std::int64_t feature_index)
 
 const data_type& table_metadata::get_data_type(std::int64_t feature_index) const {
     return impl_->get_data_type(feature_index);
+}
+
+const dal::array<feature_type>& table_metadata::get_feature_types() const {
+    return impl_->get_feature_types();
+}
+
+const dal::array<data_type>& table_metadata::get_data_types() const {
+    return impl_->get_data_types();
 }
 
 void table_metadata::serialize(detail::output_archive& ar) const {

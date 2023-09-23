@@ -121,20 +121,6 @@ public:
     }
 #endif
 
-    // Needs to be overriden for backward compatibility. Should be remove in oneDAL 2022.1.
-    detail::access_iface_host& get_access_iface_host() const override {
-        using msg = detail::error_messages;
-        throw dal::internal_error{ msg::object_does_not_provide_access_to_rows_or_columns() };
-    }
-
-#ifdef ONEDAL_DATA_PARALLEL
-    // Needs to be overriden for backward compatibility. Should be remove in oneDAL 2022.1.
-    detail::access_iface_dpc& get_access_iface_dpc() const override {
-        using msg = detail::error_messages;
-        throw dal::internal_error{ msg::object_does_not_provide_access_to_rows_or_columns() };
-    }
-#endif
-
     std::int64_t get_column_count() const override {
         return col_count_;
     }
@@ -193,10 +179,9 @@ public:
                                  const sparse_indexing& indexing,
                                  const range& rows) const {
         csr_info origin_info{ meta_.get_data_type(0),
-                              layout_,
                               row_count_,
                               col_count_,
-                              row_offsets_[row_count_] - row_offsets_[0],
+                              get_non_zero_count(),
                               indexing_ };
 
         // Overflow is checked here
@@ -215,6 +200,39 @@ public:
                        row_offsets,
                        alloc_kind::host);
     }
+
+#ifdef ONEDAL_DATA_PARALLEL
+    template <typename T>
+    void pull_csr_block_template(const detail::data_parallel_policy& policy,
+                                 dal::array<T>& data,
+                                 dal::array<std::int64_t>& column_indices,
+                                 dal::array<std::int64_t>& row_offsets,
+                                 const sparse_indexing& indexing,
+                                 const range& rows,
+                                 sycl::usm::alloc alloc) const {
+        csr_info origin_info{ meta_.get_data_type(0),
+                              row_count_,
+                              col_count_,
+                              get_non_zero_count(),
+                              indexing_ };
+
+        // Overflow is checked here
+        check_block_row_range(rows);
+
+        block_info block_info{ rows.start_idx, rows.get_element_count(row_count_), indexing };
+
+        csr_pull_block(policy,
+                       origin_info,
+                       block_info,
+                       data_,
+                       column_indices_,
+                       row_offsets_,
+                       data,
+                       column_indices,
+                       row_offsets,
+                       alloc_kind_from_sycl(alloc));
+    }
+#endif
 
     void serialize(detail::output_archive& ar) const override {
         ar(meta_, data_, column_indices_, row_offsets_, col_count_, row_count_, layout_, indexing_);
