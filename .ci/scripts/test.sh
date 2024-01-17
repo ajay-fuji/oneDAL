@@ -65,7 +65,6 @@ fi
 build_system=${build_system:-cmake}
 backend=${backend:-mkl}
 
-echo "=======================conda================================"
 if [ "${OS}" == "lnx" ]; then
     source /usr/share/miniconda/etc/profile.d/conda.sh
     if [ "${conda_env}" != "" ]; then
@@ -86,26 +85,20 @@ else
     echo "Error not supported OS: ${OS}"
     exit 1
 fi
-echo "======================================================="
 
 if [ "$(uname)" == "Linux" ]; then
     make_op="-j$(grep -c processor /proc/cpuinfo)"
 else
     make_op="-j$(sysctl -n hw.physicalcpu)"
-    echo make_op= ${make_op}
 fi
 
 #setup env for DAL
 source ${BUILD_DIR}/daal/latest/env/vars.sh
-echo source ${BUILD_DIR}/daal/latest/env/vars.sh
 
 #setup env for TBB
 export TBBROOT=$(pwd)/__deps/tbb/${OS}
 export CPATH=${TBBROOT}/include:$CPATH
 export CMAKE_MODULE_PATH=${TBBROOT}/lib/cmake/tbb:${CMAKE_MODULE_PATH}
-echo TBBROOT: ${TBBROOT}
-echo CPATH: ${CPATH}
-echo CMAKE_MODULE_PATH: ${CMAKE_MODULE_PATH}
 
 if [ "${OS}" == "mac" ]; then
     export DYLD_LIBRARY_PATH=${TBBROOT}/lib:${DYLD_LIBRARY_PATH}
@@ -113,15 +106,10 @@ if [ "${OS}" == "mac" ]; then
 else
     export LD_LIBRARY_PATH=${TBBROOT}/lib/${full_arch}/gcc4.8:${LD_LIBRARY_PATH}
     export LIBRARY_PATH=${TBBROOT}/lib/${full_arch}/gcc4.8:${LIBRARY_PATH}
-    echo LD_LIBRARY_PATH: ${LD_LIBRARY_PATH}
-    echo LIBRARY_PATH: ${LIBRARY_PATH}
 fi
-
-echo oneDAL_DIR: ${oneDAL_DIR}
 
 interface=${interface:-daal/cpp}
 cd "${BUILD_DIR}/daal/latest/${TEST_KIND}/${interface}"
-echo cd "${BUILD_DIR}/daal/latest/${TEST_KIND}/${interface}"
 
 for link_mode in ${link_modes}; do
     if [ "${link_mode}" == "static" ]; then
@@ -146,12 +134,6 @@ for link_mode in ${link_modes}; do
             export CC=icx
             export CXX=icpx
         fi
-        echo "============== Configuration: =============="
-        echo Compiler:  ${compiler}
-        echo Link mode: ${link_mode}
-        echo CC: ${CC}
-        echo CXX: ${CXX}
-        echo "============================================"
 
         if [ -d "Build" ]; then
             rm -rf Build/*
@@ -164,7 +146,6 @@ for link_mode in ${link_modes}; do
             ref_backend="ON"
         fi
 
-        echo cmake -B Build -S . -G "Unix Makefiles" -DONEDAL_LINK=${link_mode} -DTBB_DIR=${TBBROOT}/lib/cmake/tbb -DREF_BACKEND=${ref_backend}
         cmake -B Build -S . -G "Unix Makefiles" -DONEDAL_LINK=${link_mode} -DTBB_DIR=${TBBROOT}/lib/cmake/tbb -DREF_BACKEND=${ref_backend}
         err=$?
         if [ ${err} -ne 0 ]; then
